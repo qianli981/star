@@ -2,55 +2,70 @@
 
 body, html {
   width: 100%; height: 100%; overflow: hidden;
-  /* 神秘紫到神秘蓝的圆点径向渐变 */
-  background: radial-gradient(circle at 50% 50%, #301847 0%, #1A183D 40%, #0A0D1A 100%);
   font-family: "Optima", serif;
+  background-color: #05050A;
 }
 
-/* 纯 CSS 绘制星空背景点缀 */
-body::before {
-  content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-  background-image: 
-    radial-gradient(2px 2px at 20px 30px, #eee, rgba(0,0,0,0)),
-    radial-gradient(2px 2px at 40px 70px, #fff, rgba(0,0,0,0)),
-    radial-gradient(1px 1px at 90px 40px, #fff, rgba(0,0,0,0)),
-    radial-gradient(2px 2px at 160px 120px, #ddd, rgba(0,0,0,0));
-  background-repeat: repeat; background-size: 200px 200px;
-  opacity: 0.4; z-index: -1; animation: twinkle 4s infinite alternate;
-}
-@keyframes twinkle { 0% { opacity: 0.2; } 100% { opacity: 0.6; } }
-
-#start-screen {
+/* 神秘紫到深邃蓝的圆心渐变 */
+.starry-bg {
   position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-  background: #05050A; z-index: 999; display: flex; flex-direction: column;
-  justify-content: center; align-items: center; color: #E6C27A;
-}
-#start-screen h1 { font-size: 32px; letter-spacing: 5px; margin-bottom: 10px; text-shadow: 0 0 20px #E6C27A; }
-#start-screen p { color: #8C96A6; font-size: 14px; margin-bottom: 40px; }
-#start-cam-btn {
-  background: transparent; border: 1px solid #E6C27A; color: #E6C27A;
-  padding: 15px 30px; font-size: 16px; border-radius: 4px; box-shadow: 0 0 15px rgba(230,194,122,0.2);
+  background: radial-gradient(circle at 50% 50%, #491A5B 0%, #171A4A 45%, #050814 100%);
+  z-index: -3;
 }
 
-#ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; padding: 20px;}
-.header h1 { color: #E6C27A; font-size: 24px; letter-spacing: 2px; text-shadow: 0 0 10px rgba(230,194,122,0.5);}
-.header .subtitle { color: #8C96A6; font-size: 12px; letter-spacing: 4px; }
-.status-box { margin-top: 15px; background: rgba(0,0,0,0.5); border-left: 2px solid #E6C27A; padding: 5px 10px; backdrop-filter: blur(4px);}
-#status-text { color: #D1D5E0; font-size: 14px; font-weight: bold; letter-spacing: 1px;}
-
-.card-info {
-  position: absolute; bottom: 30px; left: 2%; right: 2%; text-align: center;
-  background: rgba(10, 13, 20, 0.7); border: 1px solid #E6C27A; padding: 15px 5px;
-  border-radius: 8px; backdrop-filter: blur(10px); transition: opacity 1s;
-  display: flex; justify-content: space-around; gap: 5px;
+/* CSS 绘制真实的闪烁星空 */
+.stars {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  background-image: 
+    radial-gradient(1.5px 1.5px at 10% 20%, #fff, rgba(0,0,0,0)),
+    radial-gradient(2px 2px at 30% 60%, #fff, rgba(0,0,0,0)),
+    radial-gradient(1px 1px at 70% 30%, #fff, rgba(0,0,0,0)),
+    radial-gradient(2px 2px at 90% 80%, #fff, rgba(0,0,0,0)),
+    radial-gradient(1px 1px at 40% 10%, #fff, rgba(0,0,0,0)),
+    radial-gradient(2.5px 2.5px at 80% 50%, #fff, rgba(0,0,0,0));
+  background-repeat: repeat; background-size: 250px 250px;
+  opacity: 0.8; z-index: -2;
 }
-.card-info div { flex: 1; }
-.card-info h2 { color: #E6C27A; font-size: 14px; margin-bottom: 5px; }
-.card-info h3 { color: #8C96A6; font-size: 11px; margin-bottom: 5px; letter-spacing: 1px;}
-.card-info p { color: #fff; font-size: 10px; line-height: 1.4;}
 
-/* 全屏骨骼画布，精准贴合手指 */
+.twinkling {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  background-image: 
+    radial-gradient(2px 2px at 20% 80%, rgba(255,255,255,0.8), rgba(0,0,0,0)),
+    radial-gradient(3px 3px at 60% 20%, rgba(255,255,255,0.9), rgba(0,0,0,0)),
+    radial-gradient(1.5px 1.5px at 80% 90%, rgba(255,255,255,0.7), rgba(0,0,0,0));
+  background-repeat: repeat; background-size: 300px 300px;
+  animation: twinkle 3s infinite alternate; z-index: -1;
+}
+
+@keyframes twinkle { 0% { opacity: 0.1; transform: scale(0.98); } 100% { opacity: 1; transform: scale(1.02); box-shadow: 0 0 10px #fff; } }
+
+/* 全屏骨骼与摄像头画布，精准重合 */
 #gesture-canvas {
   position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
-  z-index: 99; transform: scaleX(-1); pointer-events: none;
+  z-index: 0; /* 放在 3D 场景下面，背景上面 */
+  opacity: 0.4; /* 半透明显示摄像头画面，融合进星空 */
+  object-fit: cover;
 }
+
+#start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(5,5,10,0.8); z-index: 999; display: flex; flex-direction: column; justify-content: center; align-items: center; color: #E6C27A; backdrop-filter: blur(5px); }
+#start-screen h1 { font-size: 36px; letter-spacing: 6px; margin-bottom: 10px; text-shadow: 0 0 25px #E6C27A; }
+#start-screen p { color: #D1D5E0; font-size: 14px; margin-bottom: 40px; letter-spacing: 2px;}
+#start-cam-btn { background: transparent; border: 1px solid #E6C27A; color: #E6C27A; padding: 15px 35px; font-size: 16px; border-radius: 2px; box-shadow: 0 0 20px rgba(230,194,122,0.3); transition: 0.3s; }
+
+#ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; padding: 30px;}
+.header h1 { color: #E6C27A; font-size: 26px; letter-spacing: 3px; text-shadow: 0 0 15px rgba(230,194,122,0.6);}
+.header .subtitle { color: #8C96A6; font-size: 12px; letter-spacing: 5px; }
+.status-box { margin-top: 20px; background: rgba(10,13,20,0.6); border-left: 3px solid #E6C27A; padding: 8px 15px; backdrop-filter: blur(8px); display: inline-block;}
+#status-text { color: #E8EBF2; font-size: 15px; font-weight: bold; letter-spacing: 1px;}
+
+.card-info {
+  position: absolute; bottom: 30px; left: 3%; right: 3%; text-align: center;
+  background: rgba(5, 5, 10, 0.85); border: 1px solid #E6C27A; padding: 20px 10px;
+  border-radius: 4px; backdrop-filter: blur(15px); transition: opacity 1.5s;
+  display: flex; justify-content: space-around; gap: 8px; box-shadow: 0 0 30px rgba(0,0,0,0.8);
+  opacity: 0;
+}
+.card-info div { flex: 1; }
+.card-info h2 { color: #E6C27A; font-size: 15px; margin-bottom: 8px; text-shadow: 0 0 5px rgba(230,194,122,0.5);}
+.card-info h3 { color: #8C96A6; font-size: 12px; margin-bottom: 6px; letter-spacing: 2px;}
+.card-info p { color: #fff; font-size: 11px; line-height: 1.5;}
