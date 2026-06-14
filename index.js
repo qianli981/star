@@ -234,16 +234,27 @@ hands.onResults((results) => {
   }
 });
 
-// 绑定启动按钮 (解决手机黑屏问题)
+// 绑定启动按钮 
 document.getElementById('start-cam-btn').addEventListener('click', () => {
   document.getElementById('start-screen').style.display = 'none';
   document.getElementById('ui-layer').style.display = 'block';
   
+  // 关键：增加加载提示，让你知道它到底是不是卡在网络了
+  setStatus("正在从云端召唤 AI 灵视模型，请耐心等待..."); 
+  
   const cameraUtils = new Camera(videoElement, {
-    onFrame: async () => { await hands.send({ image: videoElement }); },
+    onFrame: async () => { 
+      // 只要有一帧画面传过来，就说明摄像头真通了
+      await hands.send({ image: videoElement }); 
+    },
     width: 320, height: 240
   });
-  cameraUtils.start().catch(() => alert("摄像头被拒绝或环境不支持"));
+
+  cameraUtils.start().then(() => {
+    setStatus("摄像头已唤醒，正在加载手势模型...");
+  }).catch((err) => {
+    setStatus("摄像头唤醒失败，请检查浏览器权限。");
+  });
 });
 
 window.addEventListener('resize', () => {
