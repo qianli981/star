@@ -1,224 +1,252 @@
-const STATE = { INIT: 'INIT', SHUFFLE: 'SHUFFLE', DRAW: 'DRAW' };
-let currentState = STATE.INIT;
+// --- 1. 生成完整的 78 张塔罗牌字典 ---
+const majorArcana = ["愚者 The Fool","魔术师 The Magician","女祭司 The High Priestess","皇后 The Empress","皇帝 The Emperor","教皇 The Hierophant","恋人 The Lovers","战车 The Chariot","力量 Strength","隐士 The Hermit","命运之轮 Wheel of Fortune","正义 Justice","倒吊人 The Hanged Man","死神 Death","节制 Temperance","恶魔 The Devil","高塔 The Tower","星星 The Star","月亮 The Moon","太阳 The Sun","审判 Judgement","世界 The World"];
+const suits = ["权杖 Wands", "圣杯 Cups", "宝剑 Swords", "星币 Pentacles"];
+const ranks = ["Ace", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "Page", "Knight", "Queen", "King"];
+const fullDeckData = [...majorArcana];
+suits.forEach(suit => ranks.forEach(rank => fullDeckData.push(`${suit} ${rank}`)));
 
-// --- 1. Three.js 场景设置 ---
+// 全局状态机
+const STATE = { INIT: 'a', SHUFFLE: 'b', DRAW: 'c', FLIP: 'd' };
+let currentState = STATE.INIT;
+let drawnCardIndex = -1; 
+let isReversed = false;
+let handVector = { x: 0, y: 0 };
+let lastIndexX = null; // 用于检测晃动
+
+// --- 2. Three.js 场景与渲染器 ---
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
 camera.position.z = 12;
-
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // 提升手机端清晰度
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 document.body.appendChild(renderer.domElement);
 
-// --- 2. 打造神秘高级光影 ---
-const ambientLight = new THREE.AmbientLight(0x4A154B, 1.2); // 神秘紫底光
-scene.add(ambientLight);
+const ambientLight = new THREE.AmbientLight(0x4A154B, 1.2); scene.add(ambientLight);
+const dirLight = new THREE.DirectionalLight(0xFFEAAA, 2); dirLight.position.set(5, 5, 8); scene.add(dirLight);
 
-const goldLight = new THREE.DirectionalLight(0xFFEAAA, 2.5); // 白金主光源
-goldLight.position.set(5, 5, 8);
-scene.add(goldLight);
-
-const blueLight = new THREE.PointLight(0x0A3A82, 3, 20); // 深邃蓝补光
-blueLight.position.set(-5, -5, 5);
-scene.add(blueLight);
-
-// --- 3. 核心：用代码“画”出黑金烫金塔罗牌纹理 ---
-function createGoldFoilTexture() {
-  const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 896;
-  const ctx = canvas.getContext('2d');
-
-  // 黑底
-  ctx.fillStyle = '#05050A';
-  ctx.fillRect(0, 0, 512, 896);
-
-  // 金线设置
-  const gold = '#E6C27A';
-  ctx.strokeStyle = gold;
-  ctx.lineWidth = 4;
-
-  // 外边框
-  ctx.strokeRect(24, 24, 464, 848);
-  
-  // 内边框 (带角星)
-  ctx.lineWidth = 1.5;
-  ctx.strokeRect(40, 40, 432, 816);
-  
-  const drawStar = (cx, cy) => {
-    ctx.beginPath();
-    ctx.arc(cx, cy, 6, 0, Math.PI*2);
-    ctx.fillStyle = gold;
-    ctx.fill();
-    ctx.stroke();
-  };
-  drawStar(40, 40); drawStar(472, 40); drawStar(40, 856); drawStar(472, 856);
-
-  // 中心魔法阵/太阳图案
-  ctx.save();
-  ctx.translate(256, 448);
-  
-  // 外层几何环
-  ctx.beginPath(); ctx.arc(0, 0, 160, 0, Math.PI*2); ctx.stroke();
-  ctx.beginPath(); ctx.arc(0, 0, 150, 0, Math.PI*2); ctx.stroke();
-  
-  // 放射线
-  for(let i=0; i<24; i++) {
-    ctx.rotate(Math.PI / 12);
-    ctx.beginPath();
-    ctx.moveTo(0, 80);
-    ctx.lineTo(0, i % 2 === 0 ? 140 : 110); // 长短交替的芒星
-    ctx.stroke();
-  }
-  
-  // 中心日月核心
-  ctx.beginPath(); ctx.arc(0, 0, 60, 0, Math.PI*2); ctx.stroke();
-  ctx.fillStyle = 'rgba(230, 194, 122, 0.1)'; // 微弱的金粉感
-  ctx.fill();
-  
-  // 底部文字装饰线
-  ctx.restore();
-  ctx.fillStyle = gold;
-  ctx.font = "italic 24px serif";
-  ctx.textAlign = "center";
-  ctx.fillText("T H E   F A T E", 256, 800);
-  ctx.beginPath(); ctx.moveTo(150, 760); ctx.lineTo(360, 760); ctx.stroke();
-
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
-  return texture;
+// --- 3. 材质生成器 (黑金背面 + 动态正面) ---
+function createCardBackTexture() {
+  const cvs = document.createElement('canvas'); cvs.width = 512; cvs.height = 896;
+  const ctx = cvs.getContext('2d');
+  ctx.fillStyle = '#05050A'; ctx.fillRect(0, 0, 512, 896);
+  ctx.strokeStyle = '#E6C27A'; ctx.lineWidth = 4; ctx.strokeRect(20, 20, 472, 856);
+  ctx.beginPath(); ctx.arc(256, 448, 120, 0, Math.PI*2); ctx.stroke();
+  for(let i=0; i<8; i++){ ctx.moveTo(256, 328); ctx.lineTo(256+150*Math.sin(i*Math.PI/4), 448-150*Math.cos(i*Math.PI/4)); ctx.stroke(); }
+  return new THREE.CanvasTexture(cvs);
 }
 
-// 应用具有金属质感的材质
-const tarotTexture = createGoldFoilTexture();
-const cardMat = new THREE.MeshStandardMaterial({ 
-  map: tarotTexture,
-  roughness: 0.2, // 表面光滑度
-  metalness: 0.9, // 极强的金属反光感
-  side: THREE.DoubleSide
-});
+// 动态生成被抽中那张牌的正面图案
+function generateFaceTexture(cardName) {
+  const cvs = document.createElement('canvas'); cvs.width = 512; cvs.height = 896;
+  const ctx = cvs.getContext('2d');
+  ctx.fillStyle = '#1A1A24'; ctx.fillRect(0, 0, 512, 896); // 幽暗背景
+  ctx.strokeStyle = '#E6C27A'; ctx.lineWidth = 8; ctx.strokeRect(15, 15, 482, 866);
+  
+  // 绘制正面黑金法阵
+  ctx.beginPath(); ctx.arc(256, 448, 180, 0, Math.PI*2); ctx.stroke();
+  ctx.fillStyle = 'rgba(230, 194, 122, 0.1)'; ctx.fill();
+  
+  // 写入牌名
+  ctx.fillStyle = '#E6C27A'; ctx.textAlign = "center";
+  ctx.font = "bold 36px serif"; ctx.fillText(cardName.split(' ')[0], 256, 100); // 中文
+  ctx.font = "italic 28px serif"; ctx.fillText(cardName.split(' ').slice(1).join(' '), 256, 140); // 英文
+  
+  return new THREE.CanvasTexture(cvs);
+}
 
-// 生成牌堆
+const backTexture = createCardBackTexture();
 const deck = new THREE.Group();
 const cards = [];
-const cardGeo = new THREE.PlaneGeometry(2.4, 4.2); // 调整为修长的塔罗牌比例
 
-for (let i = 0; i < 22; i++) { // 22张大阿卡纳
-  const card = new THREE.Mesh(cardGeo, cardMat);
-  card.position.set(0, 0, -i * 0.015);
-  cards.push(card);
-  deck.add(card);
+// 建立完整的 78 张牌模型
+const cardGeo = new THREE.PlaneGeometry(2.4, 4.2);
+for (let i = 0; i < 78; i++) {
+  // 每张牌都有两面：0是正面(暂为黑屏)，1是背面
+  const matFront = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.2, metalness: 0.8 });
+  const matBack = new THREE.MeshStandardMaterial({ map: backTexture, roughness: 0.2, metalness: 0.8 });
+  const card = new THREE.Mesh(cardGeo, [matFront, matFront, matFront, matFront, matFront, matBack]);
+  
+  card.position.set(0, 0, -i * 0.005);
+  card.rotation.y = Math.PI; // 初始全背面朝上
+  cards.push(card); deck.add(card);
 }
 scene.add(deck);
 
-// 渲染循环
+// --- 边缘粒子特效 (抽牌时显示) ---
+const particleGeo = new THREE.BufferGeometry();
+const particlePos = [];
+for(let i=0; i<100; i++) {
+  particlePos.push((Math.random()-0.5)*3, (Math.random()-0.5)*5, (Math.random()-0.5)*0.5);
+}
+particleGeo.setAttribute('position', new THREE.Float32BufferAttribute(particlePos, 3));
+const particleMat = new THREE.PointsMaterial({ color: 0xE6C27A, size: 0.1, transparent: true, opacity: 0 });
+const particles = new THREE.Points(particleGeo, particleMat);
+scene.add(particles);
+
 function animate() {
   requestAnimationFrame(animate);
-  
-  // 让牌堆有呼吸感的缓慢浮动
-  if(currentState === STATE.INIT) {
-    deck.position.y = Math.sin(Date.now() * 0.001) * 0.1;
+  // a状态：重叠缓慢呼吸
+  if(currentState === STATE.INIT) deck.position.y = Math.sin(Date.now()*0.002)*0.1;
+  // b状态：牌组跟随手的向量移动
+  if(currentState === STATE.SHUFFLE) {
+    deck.position.x += (handVector.x * 15 - deck.position.x) * 0.05;
+    deck.position.y += (handVector.y * 10 - deck.position.y) * 0.05;
   }
-  
+  // c/d状态：边缘粒子舞动
+  if(currentState === STATE.DRAW || currentState === STATE.FLIP) {
+    const positions = particles.geometry.attributes.position.array;
+    for(let i=0; i<300; i+=3) { positions[i] += Math.sin(Date.now()*0.005 + i)*0.01; }
+    particles.geometry.attributes.position.needsUpdate = true;
+  }
   renderer.render(scene, camera);
 }
 animate();
 
-// --- 4. 动效控制器 ---
+// --- 4. 状态机响应 ---
+const setStatus = (txt) => document.getElementById('status-text').innerText = txt;
+const hideInfo = () => document.getElementById('card-info').style.opacity = 0;
+
 window.tarotApp = {
-  reset: () => {
-    currentState = STATE.INIT;
-    document.getElementById('status-text').innerText = "万物归原 [握拳]";
+  // f/a: 握拳重叠
+  stack: () => {
+    if(currentState === STATE.INIT) return;
+    currentState = STATE.INIT; setStatus("万物归原 (握拳)"); hideInfo();
+    gsap.to(particles.material, { opacity: 0, duration: 0.5 }); // 关闭粒子
     cards.forEach((card, i) => {
-      gsap.to(card.position, { x: 0, y: 0, z: -i * 0.015, duration: 1.2, ease: "power3.inOut" });
-      gsap.to(card.rotation, { x: 0, y: 0, z: 0, duration: 1.2, ease: "power3.inOut" });
+      gsap.to(card.position, { x: 0, y: 0, z: -i * 0.005, duration: 1.2, ease: "power2.inOut" });
+      gsap.to(card.rotation, { x: 0, y: Math.PI, z: 0, duration: 1.2 }); // 强制背面
+      gsap.to(card.scale, { x: 1, y: 1, z: 1, duration: 0.5 });
     });
   },
+  // b/e: 五指散开洗牌
   shuffle: () => {
-    currentState = STATE.SHUFFLE;
-    document.getElementById('status-text').innerText = "命运之流 [五指张开]";
+    if(currentState === STATE.SHUFFLE) return;
+    currentState = STATE.SHUFFLE; setStatus("命运流转，跟随指引 (五指张开)"); hideInfo();
+    gsap.to(particles.material, { opacity: 0, duration: 0.5 });
     cards.forEach((card) => {
       gsap.to(card.position, {
-        x: (Math.random() - 0.5) * 14,
-        y: (Math.random() - 0.5) * 10,
-        z: (Math.random() - 0.5) * 3,
-        duration: 1.8, ease: "power2.out"
+        x: (Math.random() - 0.5) * 16, y: (Math.random() - 0.5) * 12, z: (Math.random() - 0.5) * 5 - 2,
+        duration: 1.5, ease: "power2.out"
       });
-      gsap.to(card.rotation, {
-        z: (Math.random() - 0.5) * Math.PI * 0.5,
-        duration: 1.8
-      });
+      gsap.to(card.rotation, { x: 0, y: Math.PI, z: (Math.random()-0.5)*0.5, duration: 1.5 }); // 全背面
+      gsap.to(card.scale, { x: 1, y: 1, z: 1, duration: 0.5 });
     });
   },
+  // c: 一指抽牌
   draw: () => {
-    currentState = STATE.DRAW;
-    document.getElementById('status-text').innerText = "启示显现 [单指]";
-    cards.slice(1).forEach((card) => {
-      gsap.to(card.position, { z: -10, duration: 1.5, ease: "power2.inOut" });
-      gsap.to(card.material, { opacity: 0.3, transparent: true, duration: 1.5 });
+    if(currentState === STATE.DRAW || currentState === STATE.FLIP) return;
+    currentState = STATE.DRAW; setStatus("锁死宿命，摇晃手指翻开 (单指)");
+    
+    // 随机抽选1张
+    drawnCardIndex = Math.floor(Math.random() * 78);
+    const targetCard = cards[drawnCardIndex];
+    
+    // 其他77张牌缩小推远当背景
+    cards.forEach((card, i) => {
+      if(i !== drawnCardIndex) {
+        gsap.to(card.position, { z: -15, duration: 1.5 });
+        gsap.to(card.scale, { x: 0.5, y: 0.5, z: 0.5, duration: 1.5 });
+      }
     });
-    // 抽出的命运之牌
-    gsap.to(cards[0].position, { x: 0, y: 0, z: 4, duration: 1.5, ease: "power3.out" });
-    gsap.to(cards[0].rotation, { z: 0, y: Math.PI, duration: 1.8, ease: "power2.inOut" }); 
+
+    // 抽中牌飞到正中间放大
+    deck.position.set(0,0,0); // 重置跟随偏移
+    gsap.to(targetCard.position, { x: 0, y: 0, z: 5, duration: 1.2, ease: "power3.out" });
+    gsap.to(targetCard.rotation, { x: 0, y: Math.PI, z: 0, duration: 1.2 });
+    gsap.to(targetCard.scale, { x: 1.2, y: 1.2, z: 1.2, duration: 1.2 });
+    
+    // 开启粒子环绕
+    particles.position.set(0,0,5);
+    gsap.to(particles.material, { opacity: 1, duration: 2 });
+  },
+  // d: 摇晃翻牌
+  flip: () => {
+    if(currentState !== STATE.DRAW) return;
+    currentState = STATE.FLIP; setStatus("真相显露");
+    
+    isReversed = Math.random() > 0.5; // 50%正逆位概率
+    const targetCard = cards[drawnCardIndex];
+    const cardName = fullDeckData[drawnCardIndex];
+    
+    // 瞬间画出这一张的正面图并贴上
+    targetCard.material[4].map = generateFaceTexture(cardName);
+    targetCard.material[4].needsUpdate = true;
+
+    // 翻转动画 (如果是逆位，Z轴多转180度)
+    gsap.to(targetCard.rotation, { 
+      y: 0, // 翻到正面
+      z: isReversed ? Math.PI : 0, 
+      duration: 1.5, ease: "back.out(1.2)"
+    });
+
+    // 弹出解读字板
+    setTimeout(() => {
+      const info = document.getElementById('card-info');
+      info.innerHTML = `<h2>${cardName.split(' ')[0]} ${isReversed ? '(逆位)' : '(正位)'}</h2><p>命运的齿轮已转动，请用心感受画面的启示。</p>`;
+      info.style.opacity = 1;
+    }, 1000);
   }
 };
 
-// --- 5. 手势识别与保底机制 ---
+// --- 5. 摄像头与手势识别 ---
 const videoElement = document.getElementById('video-input');
 const canvasElement = document.getElementById('gesture-canvas');
 const canvasCtx = canvasElement.getContext('2d');
-const statusText = document.getElementById('status-text');
 
-const hands = new Hands({
-  locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
-});
+const hands = new Hands({ locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
 hands.setOptions({ maxNumHands: 1, modelComplexity: 0, minDetectionConfidence: 0.6 });
 
 hands.onResults((results) => {
   canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
   if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-    const landmarks = results.multiHandLandmarks[0];
+    const lm = results.multiHandLandmarks[0];
     
-    const indexTipY = landmarks[8].y;
-    const middleTipY = landmarks[12].y;
-    const indexBaseY = landmarks[5].y;
-    const middleBaseY = landmarks[9].y;
+    // 记录手势向量给 b 洗牌状态使用
+    handVector.x = (0.5 - lm[9].x);
+    handVector.y = (0.5 - lm[9].y);
 
-    if (indexTipY > indexBaseY && middleTipY > middleBaseY) window.tarotApp.reset();
-    else if (indexTipY < indexBaseY && middleTipY < middleBaseY) window.tarotApp.shuffle();
-    else if (indexTipY < indexBaseY && middleTipY > middleBaseY) window.tarotApp.draw();
+    const indexTipY = lm[8].y, middleTipY = lm[12].y;
+    const indexBaseY = lm[5].y, middleBaseY = lm[9].y;
+    const ringTipY = lm[16].y, ringBaseY = lm[13].y;
 
-    // 绘制手势光点
-    canvasCtx.fillStyle = "rgba(230, 194, 122, 0.8)";
-    landmarks.forEach(lm => {
-      canvasCtx.beginPath();
-      canvasCtx.arc(lm.x * canvasElement.width, lm.y * canvasElement.height, 2, 0, 2*Math.PI);
-      canvasCtx.fill();
-    });
+    const isFist = indexTipY > indexBaseY && middleTipY > middleBaseY && ringTipY > ringBaseY;
+    const isOpen = indexTipY < indexBaseY && middleTipY < middleBaseY && ringTipY < ringBaseY;
+    const isOneFinger = indexTipY < indexBaseY && middleTipY > middleBaseY;
+
+    // 严格按照流程判定
+    if (isFist) window.tarotApp.stack(); // f: 变拳头重叠
+    else if (isOpen) window.tarotApp.shuffle(); // b/e: 张开洗牌
+    else if (isOneFinger) {
+      if(currentState === STATE.SHUFFLE) window.tarotApp.draw(); // c: 一指抽牌
+      // d: 检测单指晃动 (通过X轴坐标剧烈变化)
+      if(currentState === STATE.DRAW) {
+        if(lastIndexX !== null && Math.abs(lm[8].x - lastIndexX) > 0.08) {
+          window.tarotApp.flip();
+        }
+        lastIndexX = lm[8].x;
+      }
+    }
+
+    // 画骨架
+    canvasCtx.fillStyle = "#E6C27A";
+    lm.forEach(p => { canvasCtx.beginPath(); canvasCtx.arc(p.x * 100, p.y * 75, 2, 0, 2*Math.PI); canvasCtx.fill(); });
   }
 });
 
-const cameraUtils = new Camera(videoElement, {
-  onFrame: async () => { await hands.send({ image: videoElement }); },
-  width: 320, height: 240
+// 绑定启动按钮 (解决手机黑屏问题)
+document.getElementById('start-cam-btn').addEventListener('click', () => {
+  document.getElementById('start-screen').style.display = 'none';
+  document.getElementById('ui-layer').style.display = 'block';
+  
+  const cameraUtils = new Camera(videoElement, {
+    onFrame: async () => { await hands.send({ image: videoElement }); },
+    width: 320, height: 240
+  });
+  cameraUtils.start().catch(() => alert("摄像头被拒绝或环境不支持"));
 });
 
-cameraUtils.start().catch(() => {
-  // 如果拒绝摄像头，触发保底
-});
-
-// 超时强制开启点击模式 (解决卡加载问题)
-setTimeout(() => {
-  if (statusText.innerText.includes("潜入深层潜意识中")) {
-    statusText.innerText = "灵体连接超时，已开启触控干预";
-    document.getElementById('fallback-btn').style.display = 'flex';
-  }
-}, 8000);
-
-// 窗口适配
 window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
+  camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
