@@ -1,9 +1,24 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
+
 body, html {
   width: 100%; height: 100%; overflow: hidden;
-  background: radial-gradient(circle at 50% 50%, #1A1525 0%, #08090E 70%, #000000 100%);
+  /* 神秘紫到神秘蓝的圆点径向渐变 */
+  background: radial-gradient(circle at 50% 50%, #301847 0%, #1A183D 40%, #0A0D1A 100%);
   font-family: "Optima", serif;
 }
+
+/* 纯 CSS 绘制星空背景点缀 */
+body::before {
+  content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  background-image: 
+    radial-gradient(2px 2px at 20px 30px, #eee, rgba(0,0,0,0)),
+    radial-gradient(2px 2px at 40px 70px, #fff, rgba(0,0,0,0)),
+    radial-gradient(1px 1px at 90px 40px, #fff, rgba(0,0,0,0)),
+    radial-gradient(2px 2px at 160px 120px, #ddd, rgba(0,0,0,0));
+  background-repeat: repeat; background-size: 200px 200px;
+  opacity: 0.4; z-index: -1; animation: twinkle 4s infinite alternate;
+}
+@keyframes twinkle { 0% { opacity: 0.2; } 100% { opacity: 0.6; } }
 
 #start-screen {
   position: absolute; top: 0; left: 0; width: 100%; height: 100%;
@@ -17,25 +32,25 @@ body, html {
   padding: 15px 30px; font-size: 16px; border-radius: 4px; box-shadow: 0 0 15px rgba(230,194,122,0.2);
 }
 
-#ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 100; padding: 20px;}
-.header h1 { color: #E6C27A; font-size: 24px; letter-spacing: 2px; }
+#ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; padding: 20px;}
+.header h1 { color: #E6C27A; font-size: 24px; letter-spacing: 2px; text-shadow: 0 0 10px rgba(230,194,122,0.5);}
 .header .subtitle { color: #8C96A6; font-size: 12px; letter-spacing: 4px; }
-.status-box { margin-top: 15px; background: rgba(0,0,0,0.6); border-left: 2px solid #E6C27A; padding: 5px 10px; }
-#status-text { color: #D1D5E0; font-size: 14px; }
+.status-box { margin-top: 15px; background: rgba(0,0,0,0.5); border-left: 2px solid #E6C27A; padding: 5px 10px; backdrop-filter: blur(4px);}
+#status-text { color: #D1D5E0; font-size: 14px; font-weight: bold; letter-spacing: 1px;}
 
-/* 调整解读面板，适应三张牌 */
 .card-info {
-  position: absolute; bottom: 20px; left: 5%; right: 5%; text-align: center;
-  background: rgba(10, 13, 20, 0.85); border: 1px solid #E6C27A; padding: 15px;
-  border-radius: 8px; backdrop-filter: blur(8px); transition: opacity 0.8s;
-  display: flex; justify-content: space-around; gap: 10px;
+  position: absolute; bottom: 30px; left: 2%; right: 2%; text-align: center;
+  background: rgba(10, 13, 20, 0.7); border: 1px solid #E6C27A; padding: 15px 5px;
+  border-radius: 8px; backdrop-filter: blur(10px); transition: opacity 1s;
+  display: flex; justify-content: space-around; gap: 5px;
 }
 .card-info div { flex: 1; }
-.card-info h2 { color: #E6C27A; font-size: 16px; margin-bottom: 5px; }
-.card-info h3 { color: #8C96A6; font-size: 12px; margin-bottom: 5px; letter-spacing: 2px;}
-.card-info p { color: #fff; font-size: 12px; line-height: 1.4;}
+.card-info h2 { color: #E6C27A; font-size: 14px; margin-bottom: 5px; }
+.card-info h3 { color: #8C96A6; font-size: 11px; margin-bottom: 5px; letter-spacing: 1px;}
+.card-info p { color: #fff; font-size: 10px; line-height: 1.4;}
 
+/* 全屏骨骼画布，精准贴合手指 */
 #gesture-canvas {
-  position: absolute; top: 20px; right: 20px; width: 100px; height: 75px; z-index: 99;
-  transform: scaleX(-1); border: 1px solid rgba(230, 194, 122, 0.3); border-radius: 4px;
+  position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+  z-index: 99; transform: scaleX(-1); pointer-events: none;
 }
