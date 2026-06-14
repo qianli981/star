@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>命运之戏 - 完整78牌阵</title>
+  <title>命运之戏 Play of Fate</title>
   <link rel="stylesheet" href="index.css">
   
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -14,19 +14,20 @@
 <body>
   <div id="start-screen">
     <h1>命运之戏</h1>
-    <p>包含完整78张塔罗牌与正逆位流转</p>
-    <button id="start-cam-btn">触碰这里，开启灵视 (授予摄像头)</button>
+    <p>深呼吸，准备连接潜意识</p>
+    <button id="start-cam-btn">触碰这里，开启灵视</button>
   </div>
 
   <div id="ui-layer" style="display:none;">
     <div class="header">
       <h1>命运之戏</h1><p class="subtitle">78 TAROT DECK</p>
     </div>
-    <div class="status-box"><p id="status-text">等待手势指引...</p></div>
+    <div class="status-box"><p id="status-text">万物归原 [握拳]</p></div>
     <div class="card-info" id="card-info" style="opacity:0;"></div>
   </div>
 
-  <video id="video-input" autoplay muted playsinline webkit-playsinline style="position: absolute; top: 0; left: 0; width: 10px; height: 10px; opacity: 0.01; z-index: -1000; pointer-events: none;"></video>
+  <video id="video-input" autoplay muted playsinline webkit-playsinline style="position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none;"></video>
+  
   <canvas id="gesture-canvas"></canvas>
 
   <script src="index.js"></script>
