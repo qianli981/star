@@ -255,15 +255,79 @@ hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0
 
 hands.onResults((results) => {
   if(currentState === STATE.a_STACK && document.getElementById('status-text').innerText.includes("凝视星空")) {
+hands.onResults((results) => {
+  if(currentState === STATE.a_STACK && document.getElementById('status-text').innerText.includes("凝视星空")) {
     setStatus("万物归原 [握拳]");
   }
 
-  // 【核心修复】：固定右上角小窗的尺寸 (对应 CSS 的 200x150)
-  canvasElement.width = 200;
-  canvasElement.height = 150;
+  // 【核心修复1】：缩小画布分辨率以匹配 CSS 的 120x90
+  canvasElement.width = 120;
+  canvasElement.height = 90;
   
   canvasCtx.save();
   canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+  
+  if (results.image) {
+    canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+  }
+
+  if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+    const lm = results.multiHandLandmarks[0];
+    
+    handVector.x = (0.5 - lm[9].x); handVector.y = (0.5 - lm[9].y);
+
+    const indexY = lm[8].y, indexBase = lm[5].y;
+    const middleY = lm[12].y, middleBase = lm[9].y;
+    const ringY = lm[16].y, ringBase = lm[13].y;
+    const pinkyY = lm[20].y, pinkyBase = lm[17].y;
+
+    // 获取四根手指的抬起/放下状态
+    const indexUp = indexY < indexBase, middleUp = middleY < middleBase;
+    const ringUp = ringY < ringBase, pinkyUp = pinkyY < pinkyBase;
+
+    // 【核心修复2】：计算食指尖端(8)到小拇指尖端(20)的距离，以此判定五指的开合
+    const handSpread = Math.hypot(lm[8].x - lm[20].x, lm[8].y - lm[20].y);
+
+    const isFist = !indexUp && !middleUp && !ringUp && !pinkyUp; // 拳头：全部落下
+    const isOneFinger = indexUp && !middleUp && !ringUp && !pinkyUp; // 单指：仅食指抬起
+    const isFiveFingers = indexUp && middleUp && ringUp && pinkyUp; // 五指：全部抬起
+    
+    // 设定间距阈值 0.15，判断五指是并拢还是张开
+    const isFiveTogether = isFiveFingers && handSpread < 0.15;
+    const isFiveApart = isFiveFingers && handSpread >= 0.15;
+
+    // 严格按指令流转状态机 a-g
+    if (isFist) {
+      window.tarotApp.stack(); 
+    } else if (currentState !== STATE.f_FINAL) {
+      if (isFiveTogether) window.tarotApp.shuffle(); // 改为五指并拢洗牌
+      else if (isFiveApart) window.tarotApp.zoom();  // 改为五指张开放大
+      else if (isOneFinger) window.tarotApp.draw(); 
+    }
+
+    // 绘制与手精准贴合的金丝骨骼
+    canvasCtx.strokeStyle = "rgba(230, 194, 122, 0.8)";
+    canvasCtx.lineWidth = 2;
+    canvasCtx.fillStyle = "rgba(255, 255, 255, 0.9)";
+    
+    const drawLine = (p1, p2) => {
+      canvasCtx.beginPath();
+      canvasCtx.moveTo(p1.x * canvasElement.width, p1.y * canvasElement.height);
+      canvasCtx.lineTo(p2.x * canvasElement.width, p2.y * canvasElement.height);
+      canvasCtx.stroke();
+    };
+    const fingers = [[0,1,2,3,4], [0,5,6,7,8], [0,9,10,11,12], [0,13,14,15,16], [0,17,18,19,20]];
+    fingers.forEach(f => { for(let i=0; i<f.length-1; i++) drawLine(lm[f[i]], lm[f[i+1]]); });
+
+    lm.forEach(p => { 
+      canvasCtx.beginPath(); 
+      canvasCtx.arc(p.x * canvasElement.width, p.y * canvasElement.height, 2, 0, 2*Math.PI); 
+      canvasCtx.fill(); 
+      canvasCtx.stroke();
+    });
+  }
+  canvasCtx.restore();
+});
   
   // 在小窗内绘制摄像头画面
   if (results.image) {
