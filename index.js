@@ -198,6 +198,11 @@ const hands = new Hands({ locateFile: (f) => `https://cdn.jsdelivr.net/npm/@medi
 hands.setOptions({ maxNumHands: 1, modelComplexity: 0, minDetectionConfidence: 0.6 });
 
 hands.onResults((results) => {
+  // 只要走到这里，说明 AI 模型下载完成并且开始识别了！
+  if (currentState === STATE.INIT) setStatus("万物归原 (握拳)"); 
+  
+  canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+  // ... 下面保留你原来的代码 ...
   canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
   if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
     const lm = results.multiHandLandmarks[0];
