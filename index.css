@@ -41,19 +41,19 @@ body, html {
 
 /* ...（上面星空和UI的CSS保持原样，直接替换最下面的这个）... */
 
-/* 右上角监控小窗：精准骨骼贴合 */
+/* 右上角监控小窗：缩小尺寸避免遮挡文字 */
 #gesture-canvas {
   position: absolute; 
   top: 20px; 
   right: 20px; 
-  width: 200px; 
-  height: 150px;
-  z-index: 100; /* 确保在最上层 */
-  transform: scaleX(-1); /* 镜像翻转，像照镜子 */
-  border: 1px solid rgba(230, 194, 122, 0.4); /* 暗金边框 */
-  border-radius: 8px; /* 圆角 */
-  box-shadow: 0 4px 20px rgba(0,0,0,0.8); /* 边缘阴影 */
-  background-color: #000; /* 防止没画面时透明 */
+  width: 120px; /* 从 200px 缩小至 120px */
+  height: 90px; /* 从 150px 缩小至 90px */
+  z-index: 100;
+  transform: scaleX(-1);
+  border: 1px solid rgba(230, 194, 122, 0.4);
+  border-radius: 6px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.6);
+  background-color: #000;
   opacity: 1; 
   pointer-events: none;
 }
