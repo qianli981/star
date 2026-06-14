@@ -1,4 +1,5 @@
-const TAROT_BASE_URL = "https://github.com/AbsoluteWinter/tarot";
+// 使用 jsDelivr CDN 加速突破 GFW，并指向你指定的 AbsoluteWinter/tarot 或类似镜像的传统图库
+const TAROT_BASE_URL = "https://cdn.jsdelivr.net/gh/howech/tarot-images@master/cards/";
 const fullDeckData = [
   { id: 'ar00', name: "愚者 The Fool" }, { id: 'ar01', name: "魔术师 The Magician" }, { id: 'ar02', name: "女祭司 The High Priestess" }, { id: 'ar03', name: "皇后 The Empress" }, { id: 'ar04', name: "皇帝 The Emperor" }, { id: 'ar05', name: "教皇 The Hierophant" }, { id: 'ar06', name: "恋人 The Lovers" }, { id: 'ar07', name: "战车 The Chariot" }, { id: 'ar08', name: "力量 Strength" }, { id: 'ar09', name: "隐士 The Hermit" }, { id: 'ar10', name: "命运之轮 Wheel of Fortune" }, { id: 'ar11', name: "正义 Justice" }, { id: 'ar12', name: "倒吊人 The Hanged Man" }, { id: 'ar13', name: "死神 Death" }, { id: 'ar14', name: "节制 Temperance" }, { id: 'ar15', name: "恶魔 The Devil" }, { id: 'ar16', name: "高塔 The Tower" }, { id: 'ar17', name: "星星 The Star" }, { id: 'ar18', name: "月亮 The Moon" }, { id: 'ar19', name: "太阳 The Sun" }, { id: 'ar20', name: "审判 Judgement" }, { id: 'ar21', name: "世界 The World" }
 ];
@@ -10,7 +11,6 @@ const STATE = { a_STACK: 'a', b_SHUFFLE: 'b', c_ZOOM: 'c', d_DRAW: 'd', f_FINAL:
 let currentState = STATE.a_STACK;
 let drawnCards = []; 
 let handVector = { x: 0, y: 0 };
-let currentDrawingCard = null;
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
@@ -33,8 +33,7 @@ function createLuxuryBackTexture() {
   goldGradient.addColorStop(0, '#B38728'); goldGradient.addColorStop(0.5, '#FBF5B7'); goldGradient.addColorStop(1, '#B38728');
   ctx.strokeStyle = goldGradient; ctx.fillStyle = goldGradient;
   
-  ctx.lineWidth = 8; ctx.strokeRect(20, 20, 472, 856);
-  ctx.lineWidth = 2; ctx.strokeRect(32, 32, 448, 832);
+  ctx.lineWidth = 8; ctx.strokeRect(20, 20, 472, 856); ctx.lineWidth = 2; ctx.strokeRect(32, 32, 448, 832);
   
   ctx.save(); ctx.translate(256, 448);
   const drawCorner = (x, y) => { 
@@ -53,18 +52,12 @@ function createLuxuryBackTexture() {
   ctx.beginPath(); ctx.arc(0, 0, 180, 0, Math.PI*2); ctx.stroke();
   
   ctx.lineWidth = 3;
-  ctx.beginPath(); 
-  for(let i=0; i<3; i++){ ctx.lineTo(150*Math.cos(i*Math.PI*2/3 - Math.PI/2), 150*Math.sin(i*Math.PI*2/3 - Math.PI/2)); } ctx.closePath(); ctx.stroke();
-  ctx.beginPath(); 
-  for(let i=0; i<3; i++){ ctx.lineTo(150*Math.cos(i*Math.PI*2/3 + Math.PI/6), 150*Math.sin(i*Math.PI*2/3 + Math.PI/6)); } ctx.closePath(); ctx.stroke();
+  ctx.beginPath(); for(let i=0; i<3; i++){ ctx.lineTo(150*Math.cos(i*Math.PI*2/3 - Math.PI/2), 150*Math.sin(i*Math.PI*2/3 - Math.PI/2)); } ctx.closePath(); ctx.stroke();
+  ctx.beginPath(); for(let i=0; i<3; i++){ ctx.lineTo(150*Math.cos(i*Math.PI*2/3 + Math.PI/6), 150*Math.sin(i*Math.PI*2/3 + Math.PI/6)); } ctx.closePath(); ctx.stroke();
   
   ctx.beginPath(); ctx.arc(0, 0, 40, 0, Math.PI*2); ctx.fill();
   for(let i=0; i<16; i++){ ctx.moveTo(0,0); ctx.lineTo(60*Math.cos(i*Math.PI/8), 60*Math.sin(i*Math.PI/8)); ctx.stroke(); }
-  
-  ctx.beginPath(); ctx.arc(0, -260, 40, 0, Math.PI*2); ctx.stroke();
-  ctx.beginPath(); ctx.arc(-15, -260, 30, 0, Math.PI*2); ctx.clip(); ctx.fillRect(-50,-300,100,100);
   ctx.restore();
-  
   return new THREE.CanvasTexture(cvs);
 }
 
@@ -95,13 +88,6 @@ const particleMat = new THREE.PointsMaterial({ color: 0xE6C27A, size: 0.15, tran
 const particles = new THREE.Points(particleGeo, particleMat);
 scene.add(particles);
 
-const starGeo = new THREE.BufferGeometry();
-const starPos = new Float32Array(1500 * 3);
-starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
-const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.08, transparent: true, opacity: 0 });
-const starField = new THREE.Points(starGeo, starMat);
-scene.add(starField);
-
 function animate() {
   requestAnimationFrame(animate);
   const time = Date.now() * 0.001;
@@ -122,15 +108,17 @@ function animate() {
 }
 animate();
 
-// 优化文字刷新性能
 let currentStatusText = "";
 const setStatus = (txt) => {
-  if(currentStatusText !== txt) {
-    document.getElementById('status-text').innerText = txt;
-    currentStatusText = txt;
-  }
+  if(currentStatusText !== txt) { document.getElementById('status-text').innerText = txt; currentStatusText = txt; }
 };
-const slots = [-3.8, 0, 3.8]; 
+
+// 动态响应屏幕尺寸，防止牌飞出屏幕
+const getSlots = () => {
+  const aspect = window.innerWidth / window.innerHeight;
+  const spread = aspect > 1 ? 3.5 : 2.0; // 手机竖屏时牌挨得更紧密
+  return [-spread, 0, spread];
+};
 
 window.tarotApp = {
   stack: () => {
@@ -138,9 +126,7 @@ window.tarotApp = {
     currentState = STATE.a_STACK; drawnCards = [];
     setStatus("万物归原 [握拳]"); 
     document.getElementById('card-info').style.opacity = 0;
-    
     gsap.to(particles.material, { opacity: 0, duration: 0.5 });
-    gsap.to(starField.material, { opacity: 0, duration: 0.5 });
     
     cards.forEach((card, i) => {
       card.visible = true; scene.attach(card); 
@@ -158,7 +144,6 @@ window.tarotApp = {
     setStatus("命运流转，跟随手势 [五指并拢]");
     
     gsap.to(deck.position, { z: 0, duration: 1 }); 
-    
     const unDrawnCards = cards.filter(c => !drawnCards.includes(c));
     unDrawnCards.forEach((card) => {
       deck.attach(card); 
@@ -180,21 +165,24 @@ window.tarotApp = {
   draw: () => {
     if(drawnCards.length >= 3 || currentState === STATE.d_DRAW) return;
     currentState = STATE.d_DRAW; 
-    setStatus("锁定宿命落位 [伸出单指]");
+    setStatus("锁定宿命落位 [两指抽取]");
     
     const unDrawnCards = cards.filter(c => !drawnCards.includes(c));
     unDrawnCards.forEach(c => scene.attach(c)); 
     unDrawnCards.sort((a, b) => b.position.z - a.position.z); 
     
-    currentDrawingCard = unDrawnCards[0];
-    drawnCards.push(currentDrawingCard);
+    const targetCard = unDrawnCards[0];
+    drawnCards.push(targetCard);
+    
+    const slots = getSlots();
     const targetX = slots[drawnCards.length - 1];
 
-    gsap.to(currentDrawingCard.position, { x: targetX, y: -5, z: 6, duration: 1.5, ease: "power3.out" });
-    gsap.to(currentDrawingCard.rotation, { x: 0, y: Math.PI, z: 0, duration: 1.5 });
-    gsap.to(currentDrawingCard.scale, { x: 1.2, y: 1.2, z: 1.2, duration: 1.5 });
+    // 抽中的牌飞到底部，并且【缩小尺寸】
+    gsap.to(targetCard.position, { x: targetX, y: -6.5, z: 4, duration: 1.5, ease: "power3.out" });
+    gsap.to(targetCard.rotation, { x: 0, y: Math.PI, z: 0, duration: 1.5 });
+    gsap.to(targetCard.scale, { x: 0.6, y: 0.6, z: 0.6, duration: 1.5 }); // 缩小为 0.6 倍
     
-    particles.position.set(targetX, -5, 6);
+    particles.position.set(targetX, -6.5, 4);
     gsap.to(particles.material, { opacity: 1, duration: 1 });
 
     if(drawnCards.length === 3) {
@@ -204,28 +192,16 @@ window.tarotApp = {
 
   finalReveal: () => {
     currentState = STATE.f_FINAL; 
-    setStatus("宿命已定，化作星尘 [抽取三张后]");
+    setStatus("宿命已定，真相显露 [抽取三张后]");
     gsap.to(particles.material, { opacity: 0, duration: 0.5 });
 
     const unDrawnCards = cards.filter(c => !drawnCards.includes(c));
-    const positions = starField.geometry.attributes.position.array;
-    let starIdx = 0;
-    
     unDrawnCards.forEach(card => {
-      for(let j=0; j<15; j++) {
-        if(starIdx < positions.length) {
-          positions[starIdx++] = card.position.x + (Math.random()-0.5)*2;
-          positions[starIdx++] = card.position.y + (Math.random()-0.5)*2;
-          positions[starIdx++] = card.position.z + (Math.random()-0.5)*2;
-        }
-      }
       gsap.to(card.scale, { x: 0, y: 0, z: 0, duration: 1.5, ease: "power2.in" });
       setTimeout(() => card.visible = false, 1500);
     });
-    
-    starField.geometry.attributes.position.needsUpdate = true;
-    gsap.to(starField.material, { opacity: 1, duration: 0.5 });
-    gsap.to(starField.material, { opacity: 0, duration: 3, delay: 1 }); 
+
+    const slots = getSlots();
 
     drawnCards.forEach((card, i) => {
       const isReversed = Math.random() > 0.5;
@@ -238,8 +214,10 @@ window.tarotApp = {
         card.material[4].needsUpdate = true;
       });
 
-      gsap.to(card.position, { x: slots[i] * 1.5, y: 1, z: 10, duration: 2.5, ease: "power3.inOut" });
-      gsap.to(card.scale, { x: 1.9, y: 1.9, z: 1.9, duration: 2.5 });
+      // 三张牌并列飞到屏幕中央，并且【放大尺寸】，完美自适应不会出框
+      const finalScale = window.innerWidth < 600 ? 1.0 : 1.5; // 手机端缩放比例
+      gsap.to(card.position, { x: slots[i] * 1.05, y: 2, z: 12, duration: 2.5, ease: "power3.inOut" });
+      gsap.to(card.scale, { x: finalScale, y: finalScale, z: finalScale, duration: 2.5 });
       gsap.to(card.rotation, { y: 0, z: isReversed ? Math.PI : 0, duration: 2.5, ease: "back.out(1.2)" });
     });
 
@@ -262,7 +240,6 @@ const videoElement = document.getElementById('video-input');
 const canvasElement = document.getElementById('gesture-canvas');
 const canvasCtx = canvasElement.getContext('2d');
 
-// 【核心修复1】：极大降低模型复杂度以解决卡顿，提升手机端满帧率
 const hands = new Hands({ locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
 hands.setOptions({ maxNumHands: 1, modelComplexity: 0, minDetectionConfidence: 0.7 });
 
@@ -271,20 +248,14 @@ hands.onResults((results) => {
     setStatus("万物归原 [握拳]");
   }
 
-  // 设置内部渲染尺寸为正方形
-  canvasElement.width = 120;
-  canvasElement.height = 120;
-  
+  canvasElement.width = 80;
+  canvasElement.height = 80;
   canvasCtx.save();
   canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-  
-  if (results.image) {
-    canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
-  }
+  if (results.image) canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
 
   if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
     const lm = results.multiHandLandmarks[0];
-    
     handVector.x = (0.5 - lm[9].x); handVector.y = (0.5 - lm[9].y);
 
     const indexY = lm[8].y, indexBase = lm[5].y;
@@ -295,12 +266,13 @@ hands.onResults((results) => {
     const indexUp = indexY < indexBase, middleUp = middleY < middleBase;
     const ringUp = ringY < ringBase, pinkyUp = pinkyY < pinkyBase;
 
-    // 【核心修复2】：以食指(8)和小指(20)的距离判定五指张开/并拢
+    // 【五指并拢 vs 五指张开】的核心判定：以食指尖到小指尖的宽度判断
     const handSpread = Math.hypot(lm[8].x - lm[20].x, lm[8].y - lm[20].y);
-    const THRESHOLD = 0.18; // 张开和并拢的临界点
+    const THRESHOLD = 0.16;
 
     const isFist = !indexUp && !middleUp && !ringUp && !pinkyUp;
-    const isOneFinger = indexUp && !middleUp && !ringUp && !pinkyUp;
+    // 【两指抽牌】：只有食指和中指竖起（类似剪刀手/比耶✌️）
+    const isTwoFingers = indexUp && middleUp && !ringUp && !pinkyUp;
     const isFiveFingers = indexUp && middleUp && ringUp && pinkyUp;
     
     const isFiveTogether = isFiveFingers && handSpread < THRESHOLD;
@@ -309,9 +281,9 @@ hands.onResults((results) => {
     if (isFist) {
       window.tarotApp.stack(); 
     } else if (currentState !== STATE.f_FINAL) {
-      if (isFiveTogether) window.tarotApp.shuffle(); 
-      else if (isFiveApart) window.tarotApp.zoom();  
-      else if (isOneFinger) window.tarotApp.draw(); 
+      if (isFiveTogether) window.tarotApp.shuffle(); // 五指并拢
+      else if (isFiveApart) window.tarotApp.zoom();  // 五指张开
+      else if (isTwoFingers) window.tarotApp.draw(); // 两指抽取
     }
 
     canvasCtx.strokeStyle = "rgba(230, 194, 122, 0.8)";
@@ -326,13 +298,7 @@ hands.onResults((results) => {
     };
     const fingers = [[0,1,2,3,4], [0,5,6,7,8], [0,9,10,11,12], [0,13,14,15,16], [0,17,18,19,20]];
     fingers.forEach(f => { for(let i=0; i<f.length-1; i++) drawLine(lm[f[i]], lm[f[i+1]]); });
-
-    lm.forEach(p => { 
-      canvasCtx.beginPath(); 
-      canvasCtx.arc(p.x * canvasElement.width, p.y * canvasElement.height, 3, 0, 2*Math.PI); 
-      canvasCtx.fill(); 
-      canvasCtx.stroke();
-    });
+    lm.forEach(p => { canvasCtx.beginPath(); canvasCtx.arc(p.x * canvasElement.width, p.y * canvasElement.height, 2, 0, 2*Math.PI); canvasCtx.fill(); canvasCtx.stroke(); });
   }
   canvasCtx.restore();
 });
@@ -343,10 +309,7 @@ document.getElementById('start-cam-btn').addEventListener('click', () => {
   videoElement.play().catch(()=>{}); 
   setStatus("正在建立星空连接...");
   
-  const cameraUtils = new Camera(videoElement, { 
-    onFrame: async () => { await hands.send({ image: videoElement }); }, 
-    width: 320, height: 240 
-  });
+  const cameraUtils = new Camera(videoElement, { onFrame: async () => { await hands.send({ image: videoElement }); }, width: 320, height: 240 });
   cameraUtils.start().then(() => setStatus("星空已连接，等待手势指令"));
 });
 
