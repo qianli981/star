@@ -39,12 +39,23 @@ body, html {
 
 @keyframes twinkle { 0% { opacity: 0.1; transform: scale(0.98); } 100% { opacity: 1; transform: scale(1.02); box-shadow: 0 0 10px #fff; } }
 
-/* 全屏骨骼与摄像头画布，精准重合 */
+/* ...（上面星空和UI的CSS保持原样，直接替换最下面的这个）... */
+
+/* 右上角监控小窗：精准骨骼贴合 */
 #gesture-canvas {
-  position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
-  z-index: 0; /* 放在 3D 场景下面，背景上面 */
-  opacity: 0.4; /* 半透明显示摄像头画面，融合进星空 */
-  object-fit: cover;
+  position: absolute; 
+  top: 20px; 
+  right: 20px; 
+  width: 200px; 
+  height: 150px;
+  z-index: 100; /* 确保在最上层 */
+  transform: scaleX(-1); /* 镜像翻转，像照镜子 */
+  border: 1px solid rgba(230, 194, 122, 0.4); /* 暗金边框 */
+  border-radius: 8px; /* 圆角 */
+  box-shadow: 0 4px 20px rgba(0,0,0,0.8); /* 边缘阴影 */
+  background-color: #000; /* 防止没画面时透明 */
+  opacity: 1; 
+  pointer-events: none;
 }
 
 #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(5,5,10,0.8); z-index: 999; display: flex; flex-direction: column; justify-content: center; align-items: center; color: #E6C27A; backdrop-filter: blur(5px); }
