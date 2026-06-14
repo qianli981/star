@@ -5,7 +5,6 @@ const ranks = ["Ace", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "P
 const fullDeckData = [...majorArcana];
 suits.forEach(suit => ranks.forEach(rank => fullDeckData.push(`${suit} ${rank}`)));
 
-// 全局状态机
 const STATE = { INIT: 'a', SHUFFLE: 'b', DRAW: 'c', FLIP: 'd' };
 let currentState = STATE.INIT;
 let drawnCardIndex = -1; 
@@ -21,16 +20,16 @@ camera.position.z = 12;
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-
-// 【修复修复】强制画布在底层显示，不被背景遮挡
 renderer.domElement.style.position = 'absolute';
 renderer.domElement.style.top = '0px';
 renderer.domElement.style.left = '0px';
 renderer.domElement.style.zIndex = '1';
 document.body.appendChild(renderer.domElement);
 
-const ambientLight = new THREE.AmbientLight(0x4A154B, 1.2); scene.add(ambientLight);
-const dirLight = new THREE.DirectionalLight(0xFFEAAA, 2.5); dirLight.position.set(5, 5, 8); scene.add(dirLight);
+// 【修复光影】增强环境光与主光源，避免全黑
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.8); scene.add(ambientLight);
+const dirLight = new THREE.DirectionalLight(0xFFEAAA, 1.5); dirLight.position.set(5, 5, 8); scene.add(dirLight);
+const pointLight = new THREE.PointLight(0xD4AF37, 2, 50); pointLight.position.set(0, 0, 5); scene.add(pointLight);
 
 // --- 3. 材质生成器 (黑金背面 + 动态正面) ---
 function createCardBackTexture() {
@@ -62,31 +61,27 @@ function generateFaceTexture(cardName) {
 const backTexture = createCardBackTexture();
 const deck = new THREE.Group();
 const cards = [];
-
-// 【核心修复】将二维平面改为有厚度的 3D 盒子，解决材质冲突导致的不渲染问题
 const cardGeo = new THREE.BoxGeometry(2.4, 4.2, 0.02);
 
+// 【修复材质】降低金属度(metalness)，提升粗糙度(roughness)，并确保叠加底色为纯白(0xffffff)以显现纹理
 for (let i = 0; i < 78; i++) {
-  const matFront = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.2, metalness: 0.8 });
-  const matBack = new THREE.MeshStandardMaterial({ map: backTexture, roughness: 0.2, metalness: 0.8 });
-  const matEdge = new THREE.MeshStandardMaterial({ color: 0xD4AF37, roughness: 0.4, metalness: 1.0 }); // 金色侧边
+  const matFront = new THREE.MeshStandardMaterial({ color: 0x1A1A24, roughness: 0.8, metalness: 0.2 });
+  const matBack = new THREE.MeshStandardMaterial({ map: backTexture, color: 0xffffff, roughness: 0.8, metalness: 0.2 });
+  const matEdge = new THREE.MeshStandardMaterial({ color: 0xD4AF37, roughness: 0.6, metalness: 0.4 }); 
   
-  // BoxGeometry 的 6 个面顺序：右, 左, 上, 下, 前(正面), 后(背面)
   const materials = [matEdge, matEdge, matEdge, matEdge, matFront, matBack];
   const card = new THREE.Mesh(cardGeo, materials);
   
   card.position.set(0, 0, -i * 0.005);
-  card.rotation.y = Math.PI; // 初始全背面朝上
+  card.rotation.y = Math.PI; 
   cards.push(card); deck.add(card);
 }
 scene.add(deck);
 
-// --- 边缘粒子特效 ---
+// 边缘粒子特效
 const particleGeo = new THREE.BufferGeometry();
 const particlePos = [];
-for(let i=0; i<100; i++) {
-  particlePos.push((Math.random()-0.5)*3, (Math.random()-0.5)*5, (Math.random()-0.5)*0.5);
-}
+for(let i=0; i<100; i++) particlePos.push((Math.random()-0.5)*3, (Math.random()-0.5)*5, (Math.random()-0.5)*0.5);
 particleGeo.setAttribute('position', new THREE.Float32BufferAttribute(particlePos, 3));
 const particleMat = new THREE.PointsMaterial({ color: 0xE6C27A, size: 0.1, transparent: true, opacity: 0 });
 const particles = new THREE.Points(particleGeo, particleMat);
@@ -101,7 +96,7 @@ function animate() {
   }
   if(currentState === STATE.DRAW || currentState === STATE.FLIP) {
     const positions = particles.geometry.attributes.position.array;
-    for(let i=0; i<300; i+=3) { positions[i] += Math.sin(Date.now()*0.005 + i)*0.01; }
+    for(let i=0; i<300; i+=3) positions[i] += Math.sin(Date.now()*0.005 + i)*0.01;
     particles.geometry.attributes.position.needsUpdate = true;
   }
   renderer.render(scene, camera);
@@ -166,8 +161,9 @@ window.tarotApp = {
     const targetCard = cards[drawnCardIndex];
     const cardName = fullDeckData[drawnCardIndex];
     
-    // 生成正面图并贴给第 4 个面 (Box的正面)
+    // 【核心修复】不仅赋予纹理，更要将材质底色归为纯白，否则会被暗色吞噬
     targetCard.material[4].map = generateFaceTexture(cardName);
+    targetCard.material[4].color.setHex(0xffffff); 
     targetCard.material[4].needsUpdate = true;
 
     gsap.to(targetCard.rotation, { 
@@ -193,22 +189,22 @@ const hands = new Hands({ locateFile: (f) => `https://cdn.jsdelivr.net/npm/@medi
 hands.setOptions({ maxNumHands: 1, modelComplexity: 0, minDetectionConfidence: 0.6 });
 
 hands.onResults((results) => {
+  if(currentState === STATE.INIT && document.getElementById('status-text').innerText.includes("等待")) {
+    setStatus("万物归原 (握拳)");
+  }
+
   canvasCtx.save();
   canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
   
-  // 【修复】把真实的摄像头画面投射到右上角小框里，让你能看到自己
   if (results.image) {
     canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
   }
 
   if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
     const lm = results.multiHandLandmarks[0];
-    
-    handVector.x = (0.5 - lm[9].x);
-    handVector.y = (0.5 - lm[9].y);
+    handVector.x = (0.5 - lm[9].x); handVector.y = (0.5 - lm[9].y);
 
-    const indexTipY = lm[8].y, middleTipY = lm[12].y;
-    const indexBaseY = lm[5].y, middleBaseY = lm[9].y;
+    const indexTipY = lm[8].y, middleTipY = lm[12].y, indexBaseY = lm[5].y, middleBaseY = lm[9].y;
     const ringTipY = lm[16].y, ringBaseY = lm[13].y;
 
     const isFist = indexTipY > indexBaseY && middleTipY > middleBaseY && ringTipY > ringBaseY;
@@ -220,34 +216,31 @@ hands.onResults((results) => {
     else if (isOneFinger) {
       if(currentState === STATE.SHUFFLE) window.tarotApp.draw(); 
       if(currentState === STATE.DRAW) {
-        if(lastIndexX !== null && Math.abs(lm[8].x - lastIndexX) > 0.08) {
-          window.tarotApp.flip();
-        }
+        if(lastIndexX !== null && Math.abs(lm[8].x - lastIndexX) > 0.08) window.tarotApp.flip();
         lastIndexX = lm[8].x;
       }
     }
 
-    // 画骨架 (半透明，不挡住脸)
     canvasCtx.fillStyle = "rgba(230, 194, 122, 0.7)";
     lm.forEach(p => { canvasCtx.beginPath(); canvasCtx.arc(p.x * 100, p.y * 75, 2, 0, 2*Math.PI); canvasCtx.fill(); });
   }
   canvasCtx.restore();
 });
 
-// 绑定启动按钮
 document.getElementById('start-cam-btn').addEventListener('click', () => {
   document.getElementById('start-screen').style.display = 'none';
   document.getElementById('ui-layer').style.display = 'block';
-  setStatus("正在唤醒 AI 与灵视模型，请等待...");
+  
+  // 强制浏览器播放视频流，绕过黑屏限制
+  videoElement.play().catch(()=>{}); 
+  setStatus("正在建立灵视连接，请稍候...");
   
   const cameraUtils = new Camera(videoElement, {
     onFrame: async () => { await hands.send({ image: videoElement }); },
     width: 320, height: 240
   });
   
-  cameraUtils.start().then(() => {
-    setStatus("灵视已开启，正在初始化牌阵...");
-  }).catch(() => setStatus("摄像头唤醒失败，请检查浏览器权限。"));
+  cameraUtils.start().then(() => setStatus("摄像头已连接，等待模型验证..."));
 });
 
 window.addEventListener('resize', () => {
