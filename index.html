@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>命运之戏 - 古典星空版</title>
+  <title>命运之戏 - 终极灵视版</title>
   <link rel="stylesheet" href="index.css">
   
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -20,24 +20,23 @@
   <div id="start-screen">
     <h1>命运之戏</h1>
     <p>深呼吸，凝视星空，准备连接潜意识</p>
-    <button id="start-cam-btn">开启灵视</button>
+    <button id="start-cam-btn">开启灵视之眼</button>
   </div>
 
   <div id="ui-layer" style="display:none;">
     <div class="header">
       <h1>命运之戏</h1><p class="subtitle">78 CLASSIC TAROT</p>
-      <!-- 灵视开关按钮 -->
       <button id="toggle-vision-btn" class="vision-btn">关闭灵视</button>
     </div>
-    <!-- 状态栏现在可以点击，用于触控模式下的重置 -->
-    <div class="status-box" id="reset-trigger" title="点击可重置牌堆">
+    
+    <div class="status-box" id="reset-trigger" title="触控模式下点击重置">
       <p id="status-text">万物归原 [握拳]</p>
     </div>
+    
     <div class="card-info" id="card-info"></div>
   </div>
 
   <video id="video-input" autoplay muted playsinline webkit-playsinline style="position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none;"></video>
-  
   <canvas id="gesture-canvas"></canvas>
 
   <script src="index.js"></script>
